@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
-
+import pylab
 
 class kMeans():
 
@@ -65,7 +65,7 @@ class kMeans():
                     np.nonzero(cluster_assment[:,0].A == i)[0],:]
                 cur_centroids, cur_cluster_assment = \
                     self.kmeans(cur_cluster, 2, dist_meas)
-                print('bb',type(cur_centroids),'bb')
+                #print('bb',cur_centroids.tolist(),'bb')
                 cur_sse = np.sum(cur_cluster_assment[:,1])
                 other_sse = np.sum(
                     cluster_assment[np.nonzero(cluster_assment[:,0].A != i)[0],1])
@@ -73,7 +73,7 @@ class kMeans():
                     % (cur_sse, other_sse))
                 if (cur_sse + other_sse) < min_sse:
                     best_cent_to_split = i
-                    best_new_cents = cur_centroids
+                    best_new_cents = cur_centroids.tolist()
                     best_cluster_assment = cur_cluster_assment.copy()
                     min_sse = cur_sse + other_sse
             best_cluster_assment[
@@ -84,13 +84,13 @@ class kMeans():
                 ] = best_cent_to_split
             print('best_cent_to_split: %d' % best_cent_to_split)
             print('len of best_cluster_assment: %d' % len(best_cluster_assment))
-            print('aa',best_new_cents,'aa')
-            cent_list[best_cent_to_split] = best_new_cents[0,:].tolist()
-            cent_list.append(best_new_cents[1,:].tolist())
+            #print('aa',best_new_cents,'aa')
+            cent_list[best_cent_to_split] = best_new_cents[0]
+            cent_list.append(best_new_cents[1])
             cluster_assment[
                 np.nonzero(cluster_assment[:,0].A == best_cent_to_split)[0],:
                 ] = best_cluster_assment
-        return cent_list, cluster_assment
+        return np.mat(cent_list), cluster_assment
 
     def dist_slc(self, vec_a, vec_b):
         a = np.sin(vec_a[0,1]*np.pi/180) * np.sin(vec_b[0,1]*np.pi/180)
@@ -123,7 +123,7 @@ class kMeans():
         print(centroids)
         ax1.scatter(centroids[:,0].flatten().A[0],
                     centroids[:,1].flatten().A[0], marker='+', s=300)
-        plt.show()
+        pylab.show()
 
 
 
