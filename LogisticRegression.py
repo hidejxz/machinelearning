@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import random
 
-class LogisticRegression:
+class LogisticRegression():
 
 
     def load_dataset(self, filename):
