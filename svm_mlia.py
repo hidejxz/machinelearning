@@ -3,7 +3,7 @@ import random
 
 
 class opt_struct:
-    def __init__(self, data, labels, C, tol):
+    def __init__(self, data, labels, C, tol, ktup):
         self.data_mat = np.mat(data)
         self.label_mat = np.mat(labels).T
         self.C = C
@@ -13,7 +13,23 @@ class opt_struct:
         self.alphas = np.mat(np.zeros((self.m,1)))
         self.b = 0
         self.ecache = np.mat(np.zeros((self.m,2)))
+        self.K = np.mat(np.zeros((self.m,self.m)))
+        for i in range(self.m):
+            self.K[:,i] = self.kernel(self.data_mat, self.data_mat[i,:], ktup)
 
+    def kernel(self, X, A, ktup):
+        m,n = np.shape(X)
+        K = np.mat(np.zeros((m,1)))
+        if ktup[0] == 'lin':
+            K = X * A.T
+        elif ktup[0] == 'rbf':
+            for j in range(m):
+                delta = X[j,:] - A
+                K[j] = delta * delta.T 
+            K = np.exp(K/(-2*ktup[1]**2))
+        else:
+            raise NameError('can not recognize')
+        return K
 
 class svm_mlia():
     
@@ -76,7 +92,7 @@ class svm_mlia():
         #x = mat(1,n)
         #b = 1
         fx = float(np.multiply(os.alphas,os.label_mat).T 
-            * (os.data_mat*os.data_mat[i].T)) + os.b
+            * os.K[:,i]) + os.b
         return  fx - float(os.label_mat[i])
     
 
@@ -100,9 +116,12 @@ class svm_mlia():
         '''
         data_mat = mat(m,n)
         '''
+        '''
         eta = -2.0 * os.data_mat[i]*os.data_mat[j].T \
             + os.data_mat[i]*os.data_mat[i].T \
             + os.data_mat[j]*os.data_mat[j].T
+        '''
+        eta = -2.0*os.K[i, j] + os.K[i, i] + os.K[j, j]
         return eta
 
 
@@ -110,15 +129,15 @@ class svm_mlia():
 
         diff_alpha_i = os.alphas[i] - alpha_i_old
         diff_alpha_j = os.alphas[j] - alpha_j_old
-
+        '''
         K11 = os.data_mat[i] * os.data_mat[i].T
         K12 = os.data_mat[i] * os.data_mat[j].T
         K22 = os.data_mat[j] * os.data_mat[j].T
-
-        b1 = - Ei - os.label_mat[i]*diff_alpha_i*K11 \
-            - os.label_mat[j]*diff_alpha_j*K12 + os.b
-        b2 = - Ej - os.label_mat[i]*diff_alpha_i*K12 \
-            - os.label_mat[j]*diff_alpha_j*K22 + os.b
+        '''
+        b1 = - Ei - os.label_mat[i]*diff_alpha_i*os.K[i, i] \
+            - os.label_mat[j]*diff_alpha_j*os.K[i, j] + os.b
+        b2 = - Ej - os.label_mat[i]*diff_alpha_i*os.K[i, j] \
+            - os.label_mat[j]*diff_alpha_j*os.K[j, j] + os.b
         return b1, b2
 
 
@@ -220,8 +239,8 @@ class svm_mlia():
         else:
             return 0
 
-    def smoP(self, data, labels, C, tol, max_iter):
-        os = opt_struct(data, labels, C, tol)
+    def smoP(self, data, labels, C, tol, max_iter, ktup):
+        os = opt_struct(data, labels, C, tol, ktup)
         iter = 0
         entire_set = True
         alpha_pairs_changed = 0
@@ -245,11 +264,47 @@ class svm_mlia():
             elif alpha_pairs_changed == 0:
                 entire_set = True
             print('iteration number: %d' % iter)
+
+        return os.b, os.alphas
+        '''
         w = np.zeros((os.n,1))
-        for i in range(os.m):
-            w += np.multiply(os.alphas[i]*os.label_mat[i],os.data_mat[i].T)
-        return os.b, os.alphas, np.mat(w)
+        if ktup[0] = 'lin':
+            for i in range(os.m):
+                w += np.multiply(os.alphas[i]*os.label_mat[i],os.data_mat[i].T)
+            return os.b, os.alphas, np.mat(w)
+        elif ktup[0] = 'rbf':
+            return os.b, os.alphas
+        else:
+            raise NameError('can not recognize')
+        '''
+        
 
-    def pred(self, w, b, data_in):
-        return np.mat(data_in)*w+b
+fx = float(np.multiply(os.alphas,os.label_mat).T 
+            * os.K[:,i]) + os.b
 
+
+    def pred(self, alphas, b, data_in, ktup):
+        
+
+        if ktup[0] = 'lin':
+            return np.mat(data_in)*w+b
+        elif ktup[0] = 'rbf':
+            return os.b, os.alphas
+        else:
+            raise NameError('can not recognize')
+        
+    '''
+    def kernel(self, X, A, ktup):
+        m,n = np.shape(X)
+        K = np.mat(np.zeros((m,1)))
+        if ktup[0] == 'lin':
+            K = X * A.T
+        elif ktup[0] == 'rbf':
+            for j in range(m):
+                delta = X[j,:] - A
+                K[j] = delta * delta.T 
+            K = np.exp(K/(-2*ktup[1]**2))
+        else:
+            raise NameError('can not recognize')
+        return K
+    '''
