@@ -2,22 +2,65 @@ import numpy as np
 import random
 
 
-class opt_struct:
-    def __init__(self, data, labels, C, tol, ktup):
-        self.data_mat = np.mat(data)
-        self.label_mat = np.mat(labels).T
-        self.C = C
-        self.tol = tol
-        self.m = np.shape(data)[0]
-        self.n = np.shape(data)[1]
-        self.alphas = np.mat(np.zeros((self.m,1)))
-        self.b = 0
-        self.ecache = np.mat(np.zeros((self.m,2)))
-        self.K = np.mat(np.zeros((self.m,self.m)))
-        for i in range(self.m):
-            self.K[:,i] = self.kernel(self.data_mat, self.data_mat[i,:], ktup)
+def load_dataset(filename):        
+    X = []
+    y = []
+    fr = open(filename)
+    for line in fr.readlines():
+        line_arr = line.strip().split('\t')
+        X.append([float(line_arr[0]),float(line_arr[1])])
+        y.append(float(line_arr[2]))
+    return X, y
+
+def load_img(dirname):
+    from os import listdir
+    file_list = listdir(dirname) 
+    #print(file_list)
+    m = len(file_list)
+    data_mat = np.zeros((m,1024))
+    labels = []
+    for i in range(m):
+        file_name = file_list[i]
+        file_str = file_name.split('.')[0]
+        class_num = int(file_str.split('_')[0])
+        if class_num == 9:
+            labels.append(-1)
+        else:
+            labels.append(1)
+        data_mat[i,:] = img2vector(dirname+'/'+file_list[i])
+    return data_mat, labels
+
+def img2vector(filename):
+    return_vec = np.zeros((1,1024))
+    fr = open(filename)
+    for i in range(32):
+        line_str = fr.readline()
+        for j in range(32):
+            return_vec[0,32*i+j] = int(line_str[j])
+    return return_vec
+
+class svm_mlia():
+
+    class opt_struct():
+        def __init__(self, X, y, C, tol, ktup, kernel):
+            self.X = np.mat(X)
+            self.y = np.mat(y).T
+            self.C = C
+            self.tol = tol
+            self.m = np.shape(X)[0]
+            self.n = np.shape(X)[1]
+            self.alphas = np.mat(np.zeros((self.m,1)))
+            self.b = 0
+            self.ecache = np.mat(np.zeros((self.m,2)))
+            self.ktup = ktup
+            self.K = np.mat(np.zeros((self.m,self.m)))
+            for i in range(self.m):
+                self.K[:,i] = kernel(self.X, self.X[i,:], ktup)
 
     def kernel(self, X, A, ktup):
+        '''
+        output: mat m*1
+        '''
         m,n = np.shape(X)
         K = np.mat(np.zeros((m,1)))
         if ktup[0] == 'lin':
@@ -30,18 +73,6 @@ class opt_struct:
         else:
             raise NameError('can not recognize')
         return K
-
-class svm_mlia():
-    
-    def load_dataset(self, filename):        
-        data = []
-        labels = []
-        fr = open(filename)
-        for line in fr.readlines():
-            line_arr = line.strip().split('\t')
-            data.append([float(line_arr[0]),float(line_arr[1])])
-            labels.append(float(line_arr[2]))
-        return data, labels
 
     def select_jrand(self, i, m):
         j=i
@@ -91,9 +122,9 @@ class svm_mlia():
         #data_mat = mat(m,n)
         #x = mat(1,n)
         #b = 1
-        fx = float(np.multiply(os.alphas,os.label_mat).T 
+        fx = float(np.multiply(os.alphas,os.y).T 
             * os.K[:,i]) + os.b
-        return  fx - float(os.label_mat[i])
+        return  fx - float(os.y[i])
     
 
 
@@ -104,7 +135,7 @@ class svm_mlia():
         label_mat = mat(m,1)
         '''
 
-        if os.label_mat[i] != os.label_mat[j]:
+        if os.y[i] != os.y[j]:
             L = max(0.0, os.alphas[j] - os.alphas[i])
             H = min(os.C, os.C + os.alphas[j] - os.alphas[i])
         else:
@@ -116,11 +147,6 @@ class svm_mlia():
         '''
         data_mat = mat(m,n)
         '''
-        '''
-        eta = -2.0 * os.data_mat[i]*os.data_mat[j].T \
-            + os.data_mat[i]*os.data_mat[i].T \
-            + os.data_mat[j]*os.data_mat[j].T
-        '''
         eta = -2.0*os.K[i, j] + os.K[i, i] + os.K[j, j]
         return eta
 
@@ -130,19 +156,19 @@ class svm_mlia():
         diff_alpha_i = os.alphas[i] - alpha_i_old
         diff_alpha_j = os.alphas[j] - alpha_j_old
         '''
-        K11 = os.data_mat[i] * os.data_mat[i].T
-        K12 = os.data_mat[i] * os.data_mat[j].T
-        K22 = os.data_mat[j] * os.data_mat[j].T
+        K11 = os.X[i] * os.X[i].T
+        K12 = os.X[i] * os.X[j].T
+        K22 = os.X[j] * os.X[j].T
         '''
-        b1 = - Ei - os.label_mat[i]*diff_alpha_i*os.K[i, i] \
-            - os.label_mat[j]*diff_alpha_j*os.K[i, j] + os.b
-        b2 = - Ej - os.label_mat[i]*diff_alpha_i*os.K[i, j] \
-            - os.label_mat[j]*diff_alpha_j*os.K[j, j] + os.b
+        b1 = - Ei - os.y[i]*diff_alpha_i*os.K[i, i] \
+            - os.y[j]*diff_alpha_j*os.K[i, j] + os.b
+        b2 = - Ej - os.y[i]*diff_alpha_i*os.K[i, j] \
+            - os.y[j]*diff_alpha_j*os.K[j, j] + os.b
         return b1, b2
 
 
-    def smo_simple(self, data, labels, C, tol, max_iter):
-        os = opt_struct(data, labels, C, tol)
+    def smo_simple(self, X, y, C, tol, max_iter):
+        os = self.opt_struct(X, y, C, tol, ktup, self.kernel)
         iter = 0
         while (iter < max_iter):
             print(('*'*14+'iteration %d start'+'*'*14) % iter)
@@ -167,13 +193,13 @@ class svm_mlia():
                         print('eta<=0')
                         continue
 
-                    os.alphas[j] += os.label_mat[j]*(Ei - Ej)/eta
+                    os.alphas[j] += os.y[j]*(Ei - Ej)/eta
                     os.alphas[j] = self.clip_alpha(os.alphas[j], H, L)
                     if (abs(os.alphas[j]-alpha_j_old)<0.00001):
                         print('j not moving enough')
                         continue
 
-                    os.alphas[i] += os.label_mat[i]*os.label_mat[j]* \
+                    os.alphas[i] += os.y[i]*os.y[j]* \
                         (alpha_j_old - os.alphas[j])
                     
                     b1, b2 = self.b_new(os, i, j, Ei, Ej, \
@@ -194,13 +220,13 @@ class svm_mlia():
             else:
                 iter = 0
             print('iteration number: %d' % iter)
-        return os.b, os.alphas
+        return os
 
     def inner_loop(self, i, os):
         print(('*'*7+'the %d sample'+'*'*7) % i)
         Ei = self.calc_Ek(os, i)
-        if ((os.label_mat[i]*Ei < -os.tol) and (os.alphas[i] < os.C)) or \
-            ((os.label_mat[i]*Ei > os.tol) and (os.alphas[i] > 0)):
+        if ((os.y[i]*Ei < -os.tol) and (os.alphas[i] < os.C)) or \
+            ((os.y[i]*Ei > os.tol) and (os.alphas[i] > 0)):
             j, Ej = self.select_j(i, os, Ei)
             alpha_i_old = os.alphas[i].copy()
             alpha_j_old = os.alphas[j].copy()
@@ -215,7 +241,7 @@ class svm_mlia():
                 print('eta<=0')
                 return 0
 
-            os.alphas[j] += os.label_mat[j]*(Ei - Ej)/eta
+            os.alphas[j] += os.y[j]*(Ei - Ej)/eta
             os.alphas[j] = self.clip_alpha(os.alphas[j], H, L)
             self.updateEk(os,j)
 
@@ -223,7 +249,7 @@ class svm_mlia():
                 print('j not moving enough')
                 return 0
 
-            os.alphas[i] += os.label_mat[i]*os.label_mat[j]* \
+            os.alphas[i] += os.y[i]*os.y[j]* \
                 (alpha_j_old - os.alphas[j])
             self.updateEk(os,i)   
             
@@ -239,8 +265,8 @@ class svm_mlia():
         else:
             return 0
 
-    def smoP(self, data, labels, C, tol, max_iter, ktup):
-        os = opt_struct(data, labels, C, tol, ktup)
+    def smoP(self, X, y, C, tol, max_iter, ktup):
+        self.os = self.opt_struct(X, y, C, tol, ktup, self.kernel)
         iter = 0
         entire_set = True
         alpha_pairs_changed = 0
@@ -248,14 +274,14 @@ class svm_mlia():
             ((alpha_pairs_changed > 0) or entire_set):
             alpha_pairs_changed = 0
             if entire_set:
-                for i in range(os.m):
-                    alpha_pairs_changed += self.inner_loop(i, os)
+                for i in range(self.os.m):
+                    alpha_pairs_changed += self.inner_loop(i, self.os)
                     print('fullset, iter:%d i:%d, paris changed %d' % \
                         (iter, i, alpha_pairs_changed))
             else:
-                non_bound = np.nonzero((os.alphas.A>0) * (os.alphas.A<C))[0]
+                non_bound = np.nonzero((self.os.alphas.A>0) * (self.os.alphas.A<C))[0]
                 for i in non_bound:
-                    alpha_pairs_changed += self.inner_loop(i, os)
+                    alpha_pairs_changed += self.inner_loop(i, self.os)
                     print('non-bound, iter:%d i:%d, paris changed %d' % \
                         (iter, i, alpha_pairs_changed))
             iter+=1         
@@ -265,46 +291,30 @@ class svm_mlia():
                 entire_set = True
             print('iteration number: %d' % iter)
 
-        return os.b, os.alphas
+        #return os
+ 
+    def pred(self, data, labels):
+        sv_index = np.nonzero(self.os.alphas.A>0)[0]
+        sv_x = np.mat(self.os.X)[sv_index]
+        sv_y = np.mat(self.os.y)[sv_index]
+        sv_alphas = np.mat(self.os.alphas)[sv_index]
+        x_valid = np.mat(data)
+        if len(labels) > 0:
+            y_valid = np.mat(labels).T
+        error_cnt = 0
+        result_list = []
         '''
-        w = np.zeros((os.n,1))
-        if ktup[0] = 'lin':
-            for i in range(os.m):
-                w += np.multiply(os.alphas[i]*os.label_mat[i],os.data_mat[i].T)
-            return os.b, os.alphas, np.mat(w)
-        elif ktup[0] = 'rbf':
-            return os.b, os.alphas
-        else:
-            raise NameError('can not recognize')
+        if os.ktup[0] == 'lin':
+        for i in sv_index:
+            w += np.multiply(os.alphas[i]*os.y[i],os.X[i].T)
+        return np.mat(data_in)*w+os.b
         '''
-        
-
-fx = float(np.multiply(os.alphas,os.label_mat).T 
-            * os.K[:,i]) + os.b
-
-
-    def pred(self, alphas, b, data_in, ktup):
-        
-
-        if ktup[0] = 'lin':
-            return np.mat(data_in)*w+b
-        elif ktup[0] = 'rbf':
-            return os.b, os.alphas
-        else:
-            raise NameError('can not recognize')
-        
-    '''
-    def kernel(self, X, A, ktup):
-        m,n = np.shape(X)
-        K = np.mat(np.zeros((m,1)))
-        if ktup[0] == 'lin':
-            K = X * A.T
-        elif ktup[0] == 'rbf':
-            for j in range(m):
-                delta = X[j,:] - A
-                K[j] = delta * delta.T 
-            K = np.exp(K/(-2*ktup[1]**2))
-        else:
-            raise NameError('can not recognize')
-        return K
-    '''
+        for i in range(len(x_valid)):
+            result = np.sign(np.multiply(sv_alphas, sv_y).T * \
+                    self.kernel(sv_x,x_valid[i],self.os.ktup) + self.os.b)
+            if (len(labels) > 0) and (result != y_valid[i]):
+                error_cnt+=1
+            result_list.append(result)
+        if len(labels) > 0:
+            print('error rate: %.2f' % float(error_cnt/len(y_valid)))
+        return result_list
