@@ -20,7 +20,8 @@ def reg_err(X):
 def linear_solve(dataset):
     
     m,n = np.shape(dataset)
-    X = dataset[:,0:n-1].copy()
+    X = np.mat(np.ones((m,n)))
+    X[:,1:n] = dataset[:,0:n-1].copy()
     y = dataset[:,-1].copy()
     xTx = X.T*X
     if np.linalg.det(xTx) == 0.0:
@@ -38,6 +39,16 @@ def model_err(dataset):
     ws, X, y = linear_solve(dataset)
     y_hat = X * ws
     return np.sum(np.power(y-y_hat,2))
+
+def reg_tree_eval(model, indata):
+    return float(model)
+
+def model_tree_eval(model, indata):
+    n = np.shape(indata)[1]
+    X = np.mat(np.ones((1,n+1)))
+    X[:,1:n+1] = indata
+    return float(X*model)
+
 
 class RegTree():
 
@@ -126,6 +137,28 @@ class RegTree():
                 return tree
         else:
             return tree
+
+    def tree_forecast(self, tree, indata, model_eval = reg_tree_eval):
+        if not self.is_tree(tree):
+            return model_eval(tree, indata)
+        if indata[tree['sp_ind']] > tree['sp_val']:
+            if self.is_tree(tree['left']):
+                return self.tree_forecast(tree['left'], indata, model_eval)
+            else:
+                return model_eval(tree['left'], indata)
+        else:
+            if self.is_tree(tree['right']):
+                return self.tree_forecast(tree['right'], indata, model_eval)
+            else:
+                return model_eval(tree['right'], indata)
+
+    def create_forecast(self, tree, test_data, model_eval = reg_tree_eval):
+        m = len(test_data)
+        y_hat = np.mat(np.zeros((m,1)))
+        for i in range(m):
+            y_hat[i] = (self.tree_forecast(tree, np.mat(test_data[i]), 
+                        model_eval))
+        return y_hat
 
 
 
